@@ -1,0 +1,190 @@
+---
+title: "Problem Set 2"
+author: "Alejandro Acosta"
+date: today
+format:
+  html:
+    toc: true
+    embed-resources: true
+    page-layout: full
+editor: visual
+---
+
+<https://github.com/alejojacosta/EC422_Set2.git>
+
+### Data
+
+```{r}
+#| message: false
+library(tidyquant)
+library(tidyverse)
+library(knitr)
+
+# unemp_raw <- tq_get(
+#   c("UNRATE", "ORUR", "CAUR", "TXUR", "NYUR"),
+#   get  = "economic.data",
+#   from = "1976-01-01"
+# )
+# head(unemp_raw)
+# 
+# dir.create("data", showWarnings = FALSE)
+# write_rds(unemp_raw, "data/unemp_raw.rds")
+
+unemp_raw= read_rds("data/unemp_raw.rds")
+```
+
+The data set includes the monthly unemployment rates reported by FRED of the United States, California, New York, Oregon, and Texas starting from January of 1976 to September of 2026.
+
+### Wrangling
+
+```{r}
+#Cleaning Data
+unemp <- unemp_raw |>
+  rename(unemployment_rate = price) |>
+  mutate(
+    region= case_when(
+      symbol== "UNRATE" ~ "United States",
+      symbol== "ORUR" ~ "Oregon",
+      symbol== "CAUR" ~ "California",
+      symbol== "TXUR" ~ "Texas",
+      symbol== "NYUR" ~ "New York")
+  )
+
+#Wrangle Data 
+unemp <- unemp |>
+  arrange(region,date) |>
+  group_by(region) |>
+  mutate(
+    unemployment_rate= replace(
+      unemployment_rate, date== as.Date("2025-10-01"),
+      unemployment_rate[date== as.Date("2025-09-01")]
+    )
+  ) |>
+ungroup()
+
+unemp <- unemp |>
+  arrange(region,date) |>
+  group_by(region) |>
+  mutate(unemployment_rate_change= unemployment_rate - lag(unemployment_rate))|>
+  ungroup()
+
+unemp_recent <- unemp |>
+  filter(date >= as.Date("2015-01-01"))
+
+#Summary
+unemp_summary <- unemp |>
+  group_by(region) |>
+  summarize(
+    mean_rate =mean(unemployment_rate, na.rm= TRUE),
+    min_rate =min(unemployment_rate, na.rm= TRUE),
+    max_rate =max(unemployment_rate, na.rm= TRUE))
+unemp_summary |>
+  kable(
+    digits= 2,
+    col.names= c("Region", "Mean Rate", "Min Rate", "Max Rate"),
+    caption= "Unemployment Rate Summary Stats"
+  )
+#Summary Recent
+unemp_recent_summary <- unemp_recent |>
+  group_by(region) |>
+  summarize(
+    mean_rate =mean(unemployment_rate, na.rm= TRUE),
+    min_rate =min(unemployment_rate, na.rm= TRUE),
+    max_rate =max(unemployment_rate, na.rm= TRUE))
+unemp_recent_summary |>
+kable(
+  digits= 2,
+  col.names= c("Region", "Mean Rate", "Min Rate", "Max Rate"),
+  caption= "Recent Unemployment Rate Summary Stats"
+)
+
+#Extremes
+unemp_top_increases <- unemp |>
+  slice_max(unemployment_rate_change, n=5)
+
+unemp_top_decreases <- unemp |>
+  slice_min(unemployment_rate_change, n=5)
+
+#Omit 2020
+unemp_top_increases_no_covid <- unemp|>
+  filter(date < as.Date("2020-01-01")| date > as.Date("2020-12-31")) |>
+  slice_max(unemployment_rate_change, n=5)
+unemp_top_increases_no_covid |>
+kable(
+  digits= 2,
+  col.names= c("State Symbol", "Date", "Rate", "Region", "Change in Rate"),
+  caption= "Greatest month to month decreases in the unemployment rate excluding 2020"
+)
+
+unemp_top_decreases_no_covid <- unemp|>
+  filter(date < as.Date("2020-01-01")| date > as.Date("2020-12-31")) |>
+  slice_min(unemployment_rate_change, n=5) 
+unemp_top_decreases_no_covid |>
+  kable(
+    digits= 2,
+    col.names= c("State Symbol", "Date", "Rate", "Region", "Change in Rate"),
+    caption= "Greatest month to month ncreases in the unemployment rate excluding 2020"
+  )
+```
+
+### Visualization
+
+```{r}
+#Visualize Data
+ggplot( 
+  data= unemp,
+  mapping= aes(x=date, y=unemployment_rate, color=region)
+) +
+  geom_line() +
+  labs(
+    title="Unemployment Rate by Region",
+    x="Date",
+    y="Unemployment Rate (%)",
+    color="Region"
+  ) +
+  theme_minimal()
+
+ggplot( 
+  data= unemp,
+  mapping= aes(x=date, y=unemployment_rate, color=region)
+) +
+  geom_line() +
+facet_wrap(~region, ncol=2, axes = "all_x") +
+  labs(
+    title="Unemployment Rate by Region",
+    x="Date",
+    y="Unemployment Rate (%)"
+  ) +
+  theme_minimal()
+
+ggplot( 
+  data= unemp_summary,
+  mapping= aes(fct_reorder(region,mean_rate), y=mean_rate)) +
+  geom_col() +
+  labs(
+    title="Mean Unemployment Rate by Region",
+    x="Region",
+    y="Mean Unemployment Rate (%)"
+  ) +
+  theme_minimal()
+
+ggplot( 
+  data= unemp_recent,
+  mapping= aes(x=date, y=unemployment_rate, color=region)
+) +
+  geom_line() +
+  facet_wrap(~region, axes= "all_x") +
+  labs(
+    title="Unemployment Rate by Region",
+    x="Date",
+    y="Unemployment Rate (%)"
+  ) +
+  theme_minimal()
+```
+I plotted the recent unemployment rate by region to see the effects of the
+COVID-19 pandemic on unemployment rates. The plot shows a significant spike in unemployment rates around the year 2020 with a decrease in the following years.
+
+
+### Reflection
+
+This problem set helped me re-familiarize myself with R syntax, especially with the tidyverse functions and their inputs. I had some trouble figuring out the arguments to each function and general syntax errors (such as forgetting commas or including the wrong symbol in an function), however I found that I was comfortable with the workflow and understood generally what functions and code I needed to get the desired result. I've also gotten more comfortable with making commits to github and navigating through github in general.

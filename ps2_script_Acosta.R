@@ -76,10 +76,62 @@ unemp_top_increases_no_covid <- unemp|>
 
 unemp_top_decreases_no_covid <- unemp|>
   filter(date < as.Date("2020-01-01")| date > as.Date("2020-12-31")) |>
-  slice_min(unemployment_rate_change, n=5)
+  slice_min(unemployment_rate_change, n=5) 
 
+#Visualize Data
+ggplot( 
+  data= unemp,
+  mapping= aes(x=date, y=unemployment_rate, color=region)
+) +
+  geom_line() +
+  labs(
+    title="Unemployment Rate by Region",
+    x="Date",
+    y="Unemployment Rate (%)",
+    color="Region"
+  ) +
+  theme_minimal()
 
+ggplot( 
+  data= unemp,
+  mapping= aes(x=date, y=unemployment_rate, color=region)
+) +
+  geom_line() +
+facet_wrap(~region, ncol=1) +
+  labs(
+    title="Unemployment Rate by Region",
+    x="Date",
+    y="Unemployment Rate (%)"
+  ) +
+  theme_minimal()
 
+ggplot( 
+  data= unemp_summary,
+  mapping= aes(fct_reorder(region,mean_rate), y=mean_rate)) +
+  geom_col() +
+  labs(
+    title="Mean Unemployment Rate by Region",
+    x="Region",
+    y="Mean Unemployment Rate (%)"
+  ) +
+  theme_minimal()
+
+ggplot( 
+  data= unemp_recent,
+  mapping= aes(x=date, y=unemployment_rate, color=region)
+) +
+  geom_line() +
+  facet_wrap(~region) +
+  labs(
+    title="Unemployment Rate by Region",
+    x="Date",
+    y="Unemployment Rate (%)"
+  ) +
+  theme_minimal()
+
+#I plotted the recent unemployment rate by region to see the effects of the
+#COVID-19 pandemic on unemployment rates. The plot shows a significant spike in unemployment rates
+#around the year 2020 with a decrease in the following years.
 
 
 
